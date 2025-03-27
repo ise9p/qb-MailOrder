@@ -31,6 +31,40 @@ Config.Storage = {
     slots = 5,      -- Number of inventory slots
     weight = 50000  -- Maximum weight capacity
 }
+
+Config.TimeRestriction = {
+    enabled = true,
+    closeTime = 23, -- 11 PM
+    openTime = 6    -- 6 AM
+}
+
+
+Config.Ped = {
+    model = `a_m_y_bevhills_01`,
+    animation = {
+        dict = "missfam4",
+        name = "base",
+        flag = 49
+    },
+    scenario = nil,  -- Use a scenario instead of an animation (optional)
+    props = {
+        {
+            model = `p_amb_clipboard_01`,
+            bone = 36029,
+            coords = vec3(0.16, 0.08, 0.1),
+            rotation = vec3(-130.0, -50.0, 0.0)
+        }
+    }
+}
+
+Config.Webhooks = {
+    enabled = true,
+    url = "", -- Your Discord webhook URL
+    color = 3447003, -- Blue color
+    footer = "Mail System Logs",
+    title = "Mail System"
+}
+
 ```
 
 ## Installation Instructions:
