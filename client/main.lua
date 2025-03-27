@@ -1,9 +1,44 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 local mailBot = nil
+local lastNotificationTime = 0
+local mailBlip = nil 
 
+local function isMailServiceAvailable()
+    if not Config.TimeRestriction.enabled then return true end
+    local hour = GetClockHours()
+    if hour >= Config.TimeRestriction.closeTime or hour < Config.TimeRestriction.openTime then
+        local currentTime = GetGameTimer()
+        if (currentTime - lastNotificationTime) > 60000 then 
+            if Config.Notify == "qb" then
+                QBCore.Functions.Notify('Mail service is closed (11 PM - 6 AM)', 'error')
+            elseif Config.Notify == "ox" then
+                lib.notify({
+                    type = 'error',
+                    description = 'Mail service is closed (11 PM - 6 AM)'
+                })
+            end
+            lastNotificationTime = currentTime
+        end
+        return false
+    end
+    return true
+end
+
+local function UpdateBlipStatus()
+    local hour = GetClockHours()
+    local isOpen = not (hour >= Config.TimeRestriction.closeTime or hour < Config.TimeRestriction.openTime)
+    
+    BeginTextCommandSetBlipName("STRING")
+    if isOpen then
+        AddTextComponentString(Config.Blip.label .. " [Open]")
+    else
+        AddTextComponentString(Config.Blip.label .. " [Closed]")
+    end
+    EndTextCommandSetBlipName(mailBlip)
+end
 
 CreateThread(function()
-    local model = `a_m_m_hillbilly_01`
+    local model = Config.Ped.model
     RequestModel(model)
     while not HasModelLoaded(model) do
         Wait(0)
@@ -15,15 +50,51 @@ CreateThread(function()
     SetEntityInvincible(mailBot, true)
     SetBlockingOfNonTemporaryEvents(mailBot, true)
     
-    local blip = AddBlipForCoord(Config.BotLocation.x, Config.BotLocation.y, Config.BotLocation.z)
-    SetBlipSprite(blip, Config.Blip.sprite)
-    SetBlipColour(blip, Config.Blip.color)
-    SetBlipScale(blip, Config.Blip.scale)
-    SetBlipAsShortRange(blip, true)
-    BeginTextCommandSetBlipName("STRING")
-    AddTextComponentString(Config.Blip.label)
-    EndTextCommandSetBlipName(blip)
-
+    if Config.Ped.scenario then
+        TaskStartScenarioInPlace(mailBot, Config.Ped.scenario, 0, true)
+    elseif Config.Ped.animation then
+        RequestAnimDict(Config.Ped.animation.dict)
+        while not HasAnimDictLoaded(Config.Ped.animation.dict) do
+            Wait(0)
+        end
+        TaskPlayAnim(mailBot, Config.Ped.animation.dict, Config.Ped.animation.name, 8.0, 1.0, -1, Config.Ped.animation.flag, 0, false, false, false)
+    end
+    
+    -- Add props if configured
+    if Config.Ped.props then
+        for _, prop in ipairs(Config.Ped.props) do
+            local coords = GetEntityCoords(mailBot)
+            local propObj = CreateObject(prop.model, coords.x, coords.y, coords.z, true, true, true)
+            AttachEntityToEntity(propObj, mailBot, GetPedBoneIndex(mailBot, prop.bone), 
+                prop.coords.x, prop.coords.y, prop.coords.z,
+                prop.rotation.x, prop.rotation.y, prop.rotation.z,
+                true, true, false, true, 1, true)
+        end
+    end
+    
+    mailBlip = AddBlipForCoord(Config.BotLocation.x, Config.BotLocation.y, Config.BotLocation.z)
+    SetBlipSprite(mailBlip, Config.Blip.sprite)
+    SetBlipColour(mailBlip, Config.Blip.color)
+    SetBlipScale(mailBlip, Config.Blip.scale)
+    SetBlipAsShortRange(mailBlip, true)
+    
+    UpdateBlipStatus()
+    
+    CreateThread(function()
+        while true do
+            Wait(1000) 
+            local gameHour = GetClockHours()
+            local gameMinute = GetClockMinutes()
+            
+            if gameMinute == 0 or gameMinute == 30 then 
+                UpdateBlipStatus()
+            end
+            
+            if gameHour == Config.TimeRestriction.openTime or gameHour == Config.TimeRestriction.closeTime then
+                UpdateBlipStatus()
+            end
+        end
+    end)
 
     if DoesEntityExist(mailBot) then
         if Config.target == "qb" then
@@ -34,12 +105,18 @@ CreateThread(function()
                         event = "qb-MailOrder:client:showMailID",
                         icon = "fas fa-id-card",
                         label = "Show My Mail ID",
+                        canInteract = function()
+                            return isMailServiceAvailable()
+                        end
                     },
                     {
                         type = "client",
                         event = "qb-MailOrder:client:openMailMenu",
                         icon = "fas fa-envelope",
                         label = "Access Mailbox",
+                        canInteract = function()
+                            return isMailServiceAvailable()
+                        end
                     }
                 },
                 distance = 2.5
@@ -51,7 +128,9 @@ CreateThread(function()
                     icon = "fas fa-id-card",
                     label = "Show My Mail ID",
                     onSelect = function()
-                        TriggerEvent('qb-MailOrder:client:showMailID')
+                        if isMailServiceAvailable() then
+                            TriggerEvent('qb-MailOrder:client:showMailID')
+                        end
                     end
                 },
                 {
@@ -59,7 +138,9 @@ CreateThread(function()
                     icon = "fas fa-envelope",
                     label = "Access Mailbox",
                     onSelect = function()
-                        TriggerEvent('qb-MailOrder:client:openMailMenu')
+                        if isMailServiceAvailable() then
+                            TriggerEvent('qb-MailOrder:client:openMailMenu')
+                        end
                     end
                 }
             })
