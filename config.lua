@@ -1,9 +1,9 @@
 Config = {}
 
-Config.inventory = "ox" -- "qb" for qb-inventory or "ox" for ox_inventory
-Config.input = "ox"     -- "qb" for qb-input or "ox" for ox_lib input
+Config.inventory = "qb" -- "qb" for qb-inventory or "ox" for ox_inventory
+Config.input = "qb"     -- "qb" for qb-input or "ox" for ox_lib input
 Config.target = "qb"    -- "qb" for qb-target or "ox" for ox_target
-Config.Notify = "ox"    -- "qb" for QBCore.Functions.Notify or "ox" for lib.notify
+Config.Notify = "qb"    -- "qb" for QBCore.Functions.Notify or "ox" for lib.notify
 
 Config.BotLocation = vector4(-232.09, -915.49, 31.31, 337.52)
 
